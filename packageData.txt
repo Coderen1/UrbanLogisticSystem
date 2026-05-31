@@ -1,0 +1,9 @@
+# PackageID Destination
+PKG001 Talas
+PKG002 Belsin
+PKG003 Melikgazi
+PKG004 Erkilet
+PKG005 Incesu
+PKG006 Hacilar
+PKG007 Kocasinan
+PKG008 Ildem

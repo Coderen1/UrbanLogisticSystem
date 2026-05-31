@@ -1,0 +1,12 @@
+# Source Destination Weight
+Talas Melikgazi 4
+Talas Ildem 6
+Melikgazi Kocasinan 3
+Melikgazi Hacilar 7
+Kocasinan Belsin 5
+Kocasinan Erkilet 6
+Belsin Ildem 4
+Belsin Erkilet 8
+Ildem Incesu 10
+Hacilar Incesu 9
+Erkilet Incesu 11

@@ -7,23 +7,21 @@ import java.util.Scanner;
 /**
  * Main class for the FastRoute Kayseri COMP206 semester project.
  *
- * This version uses an interactive menu so each group member can demonstrate
- * one data structure and its methods step by step during the presentation.
+ * Interactive operations menu (KYS-style): users can run warehouse and routing
+ * operations manually while each menu item shows its data structure.
  */
 public class Main {
 
     private static Graph roadNetwork;
-    private static String[] pathEndpoints;
     private static SinglyLinkedList masterRegistry;
     private static DoublyLinkedList intakeBuffer;
     private static PackageQueue deliveryQueue;
     private static PackageStack truckStack;
     private static AVLTree addressDirectory;
 
-    private static boolean graphLoaded;
-    private static boolean packagesLoaded;
-
     private static Scanner scanner;
+    private static int nextPackageNumber;
+    private static int nextCustomerNumber;
 
     /**
      * Program entry point.
@@ -34,7 +32,7 @@ public class Main {
         printBranding();
         scanner = new Scanner(System.in);
         initializeSystem();
-        runMenu();
+        runOperationsMenu();
         scanner.close();
     }
 
@@ -59,486 +57,631 @@ public class Main {
         System.out.println();
 
         roadNetwork = new Graph(100);
-        pathEndpoints = loadGraphFromFile("mapData.txt", roadNetwork);
-        graphLoaded = pathEndpoints != null;
-
         masterRegistry = new SinglyLinkedList();
         intakeBuffer = new DoublyLinkedList();
         deliveryQueue = new PackageQueue();
         truckStack = new PackageStack();
         addressDirectory = new AVLTree();
 
-        packagesLoaded = loadPackagesFromFile(
-                "packageData.txt",
-                masterRegistry,
-                intakeBuffer,
-                deliveryQueue,
-                truckStack);
+        nextPackageNumber = 1;
+        nextCustomerNumber = 1;
 
-        if (packagesLoaded) {
-            populateAddressDirectory();
-        }
-
-        if (graphLoaded) {
+        if (loadGraphFromFile("mapData.txt", roadNetwork)) {
             System.out.println("mapData.txt loaded successfully.");
         }
 
-        if (packagesLoaded) {
+        if (loadInitialPackagesFromFile("packageData.txt")) {
             System.out.println("packageData.txt loaded successfully.");
         }
 
         System.out.println();
-        System.out.println("System ready. Use the menu to demonstrate each part.");
+        System.out.println("System ready.");
         System.out.println();
     }
 
     /**
-     * Displays the presentation menu and processes user selections.
+     * Displays the operations menu and processes user selections.
      */
-    private static void runMenu() {
+    private static void runOperationsMenu() {
         while (true) {
-            printMenu();
-            int choice = readMenuChoice();
+            printOperationsMenu();
+            int choice = readIntInRange("Enter operation number (0-17): ", 1, 17);
 
             switch (choice) {
                 case 1:
-                    demoMasterRegistry();
+                    receiveDelivery();
                     break;
                 case 2:
-                    demoIntakeBuffer();
+                    displayIntakeBuffer();
                     break;
                 case 3:
-                    demoDeliveryQueue();
+                    registerDeliveryInMasterLog();
                     break;
                 case 4:
-                    demoTruckStack();
+                    displayMasterLog();
                     break;
                 case 5:
-                    demoAddressDirectory();
+                    processDeliveriesToQueue();
                     break;
                 case 6:
-                    demoCityRouting();
+                    displayDeliveryQueue();
                     break;
                 case 7:
-                    demoFullSystem();
+                    loadTruckFromQueue();
                     break;
-                case 0:
-                    System.out.println("Thank you for using FastRoute Kayseri. Goodbye!");
-                    return;
+                case 8:
+                    displayTruckStack();
+                    break;
+                case 9:
+                    deliverPackageFromTruck();
+                    break;
+                case 10:
+                    createNewAddress();
+                    break;
+                case 11:
+                    searchAddress();
+                    break;
+                case 12:
+                    displayAllAddresses();
+                    break;
+                case 13:
+                    addRoadConnection();
+                    break;
+                case 14:
+                    displayCityMap();
+                    break;
+                case 15:
+                    calculateShortestPathInteractive();
+                    break;
+                case 16:
+                    displayMinimumSpanningTree();
+                    break;
+                case 17:
+                    runAvlRotationTest();
+                    break;
                 default:
-                    System.out.println("Invalid option. Please enter a number between 0 and 7.");
+                    System.out.println("Invalid option.");
             }
 
-            System.out.println();
-            System.out.println("Press Enter to return to the menu...");
-            scanner.nextLine();
+            pauseForEnter();
         }
     }
 
     /**
-     * Prints the interactive demo menu.
+     * Prints the main operations menu with data structure labels.
      */
-    private static void printMenu() {
+    private static void printOperationsMenu() {
         System.out.println("========================================");
-        System.out.println("        FastRoute Kayseri");
-        System.out.println(" Urban Logistics & Distribution System");
+        System.out.println("   FASTROUTE KAYSERI - OPERATIONS MENU");
         System.out.println("========================================");
-        System.out.println("1. Master Registry (Singly Linked List)");
-        System.out.println("2. Intake Buffer (Doubly Linked List)");
-        System.out.println("3. Standard Delivery (Queue)");
-        System.out.println("4. Truck Loading (Stack)");
-        System.out.println("5. Address Directory (AVL Tree)");
-        System.out.println("6. City Routing (Graph)");
-        System.out.println("7. Run Full Demo (All Systems)");
-        System.out.println("0. Exit");
+        System.out.println("1.  Receive a delivery                    (Doubly Linked List)");
+        System.out.println("2.  Display deliveries waiting              (Doubly Linked List)");
+        System.out.println("3.  Register delivery in master log        (Singly Linked List)");
+        System.out.println("4.  Display daily master log                (Singly Linked List)");
+        System.out.println("5.  Process deliveries to delivery queue    (Doubly Linked List + Queue)");
+        System.out.println("6.  Display delivery queue                  (Queue)");
+        System.out.println("7.  Load truck from queue                   (Queue + Stack)");
+        System.out.println("8.  Display loaded deliveries on truck      (Stack)");
+        System.out.println("9.  Deliver / unload package from truck     (Stack)");
+        System.out.println("10. Create a new address                    (AVL Tree)");
+        System.out.println("11. Search address by neighborhood          (AVL Tree)");
+        System.out.println("12. Display all addresses                   (AVL Tree)");
+        System.out.println("13. Add a new road connection               (Graph)");
+        System.out.println("14. Display city road map                   (Graph)");
+        System.out.println("15. Calculate shortest path between areas   (Graph - Dijkstra)");
+        System.out.println("16. Display minimum spanning tree           (Graph - Prim)");
+        System.out.println("17. AVL balancing and rotation test         (AVL Tree)");
+        System.out.println("0.  Exit");
         System.out.println("----------------------------------------");
-        System.out.print("Select option: ");
+    }
+
+    // -------------------------------------------------------------------------
+    // Package workflow operations
+    // -------------------------------------------------------------------------
+
+    /**
+     * Receives a new delivery and inserts it into the intake buffer.
+     * Method used: insertAtTail() on Doubly Linked List.
+     */
+    private static void receiveDelivery() {
+        printOperationHeader("RECEIVE A DELIVERY", "Doubly Linked List - insertAtTail()");
+
+        String destination = readNonEmptyLine("Enter destination neighborhood: ");
+        String customerID = resolveCustomerID(destination);
+        Package pkg = new Package(generatePackageID(), destination);
+
+        System.out.println();
+        System.out.println("Calling insertAtTail(Package pkg)...");
+        intakeBuffer.insertAtTail(pkg);
+
+        System.out.println();
+        System.out.println("[SUCCESS] Package received and added to intake buffer.");
+        System.out.println("Package ID  : " + pkg.packageID);
+        System.out.println("Destination : " + pkg.destination);
+        System.out.println("Customer ID : " + customerID);
     }
 
     /**
-     * Reads and validates a menu choice from the user.
-     *
-     * @return selected menu option
+     * Displays all packages currently waiting in the intake buffer.
+     * Method used: displayBuffer() on Doubly Linked List.
      */
-    private static int readMenuChoice() {
-        while (!scanner.hasNextInt()) {
-            scanner.next();
-            System.out.print("Please enter a valid number: ");
-        }
+    private static void displayIntakeBuffer() {
+        printOperationHeader("INTAKE BUFFER", "Doubly Linked List - displayBuffer()");
 
-        int choice = scanner.nextInt();
-        scanner.nextLine();
-        return choice;
-    }
-
-    /**
-     * Demonstrates Singly Linked List methods step by step.
-     */
-    private static void demoMasterRegistry() {
-        printSectionHeader("MASTER REGISTRY - SINGLY LINKED LIST");
-
-        SinglyLinkedList registry = new SinglyLinkedList();
-        Package[] packages = readPackagesFromFile("packageData.txt", 3);
-
-        if (packages.length == 0) {
-            System.out.println("No package data available for this demo.");
+        if (intakeBuffer.isEmpty()) {
+            System.out.println("The intake buffer is currently empty.");
             return;
         }
 
-        System.out.println("[Step 1] Method: addRecord(Package pkg)");
-        System.out.println("Purpose : Append each package to the end of the daily log.");
-        System.out.println("Complexity: O(n) because the list is traversed to find the tail.");
-        System.out.println();
-
-        for (Package pkg : packages) {
-            System.out.println("Calling addRecord(" + pkg.packageID + ", " + pkg.destination + ")");
-            registry.addRecord(pkg);
-        }
-
-        System.out.println();
-        System.out.println("[Step 2] Method: displayLog()");
-        System.out.println("Purpose : Traverse the list from head to tail and print all records.");
-        System.out.println("Complexity: O(n) because every node is visited once.");
-        System.out.println();
-        registry.displayLog();
-    }
-
-    /**
-     * Demonstrates Doubly Linked List methods step by step.
-     */
-    private static void demoIntakeBuffer() {
-        printSectionHeader("INTAKE BUFFER - DOUBLY LINKED LIST");
-
-        DoublyLinkedList buffer = new DoublyLinkedList();
-        Package[] packages = readPackagesFromFile("packageData.txt", 3);
-
-        if (packages.length == 0) {
-            System.out.println("No package data available for this demo.");
-            return;
-        }
-
-        System.out.println("[Step 1] Method: insertAtTail(Package pkg)");
-        System.out.println("Purpose : Add newly arrived packages to the end of the buffer.");
-        System.out.println("Complexity: O(1) because a tail pointer is used.");
-        System.out.println();
-
-        for (Package pkg : packages) {
-            System.out.println("Calling insertAtTail(" + pkg.packageID + ", " + pkg.destination + ")");
-            buffer.insertAtTail(pkg);
-        }
-
-        System.out.println();
-        System.out.println("Current buffer state:");
-        buffer.displayBuffer();
-
-        System.out.println("[Step 2] Method: removeFromHead()");
-        System.out.println("Purpose : Move the oldest package out of the buffer for processing.");
-        System.out.println("Complexity: O(1) because only the head pointer is updated.");
-        System.out.println();
-
-        Package removed = buffer.removeFromHead();
-
-        if (removed != null) {
-            System.out.println("Removed package from head:");
-            removed.displayPackage();
-        } else {
-            System.out.println("Buffer was empty.");
-        }
-
-        System.out.println();
-        System.out.println("Buffer after removeFromHead():");
-        buffer.displayBuffer();
-    }
-
-    /**
-     * Demonstrates Queue methods step by step.
-     */
-    private static void demoDeliveryQueue() {
-        printSectionHeader("STANDARD DELIVERY - QUEUE (FIFO)");
-
-        PackageQueue queue = new PackageQueue();
-        Package[] packages = readPackagesFromFile("packageData.txt", 3);
-
-        if (packages.length == 0) {
-            System.out.println("No package data available for this demo.");
-            return;
-        }
-
-        System.out.println("[Step 1] Method: enqueue(Package pkg)");
-        System.out.println("Purpose : Add packages to the rear of the delivery line.");
-        System.out.println("Complexity: O(1) because a rear pointer is used.");
-        System.out.println();
-
-        for (Package pkg : packages) {
-            System.out.println("Calling enqueue(" + pkg.packageID + ", " + pkg.destination + ")");
-            queue.enqueue(pkg);
-        }
-
-        System.out.println();
-        System.out.println("Current queue order (front to rear):");
-        queue.displayQueue();
-
-        System.out.println("[Step 2] Method: dequeue()");
-        System.out.println("Purpose : Remove the front package first (First In, First Out).");
-        System.out.println("Complexity: O(1) because only the front pointer is updated.");
-        System.out.println();
-
-        Package removed = queue.dequeue();
-
-        if (removed != null) {
-            System.out.println("Dequeued package:");
-            removed.displayPackage();
-        } else {
-            System.out.println("Queue was empty.");
-        }
-
-        System.out.println();
-        System.out.println("Queue after dequeue():");
-        queue.displayQueue();
-    }
-
-    /**
-     * Demonstrates Stack methods step by step.
-     */
-    private static void demoTruckStack() {
-        printSectionHeader("TRUCK LOADING - STACK (LIFO)");
-
-        PackageStack stack = new PackageStack();
-        Package[] packages = readPackagesFromFile("packageData.txt", 3);
-
-        if (packages.length == 0) {
-            System.out.println("No package data available for this demo.");
-            return;
-        }
-
-        System.out.println("[Step 1] Method: push(Package pkg)");
-        System.out.println("Purpose : Load packages onto the truck cargo area.");
-        System.out.println("Complexity: O(1) because insertion happens directly at the top.");
-        System.out.println();
-
-        for (Package pkg : packages) {
-            System.out.println("Calling push(" + pkg.packageID + ", " + pkg.destination + ")");
-            stack.push(pkg);
-        }
-
-        System.out.println();
-        System.out.println("Current stack order (top to bottom):");
-        stack.displayStack();
-
-        System.out.println("[Step 2] Method: pop()");
-        System.out.println("Purpose : Unload the most recently loaded package first (Last In, First Out).");
-        System.out.println("Complexity: O(1) because removal happens directly from the top.");
-        System.out.println();
-
-        Package removed = stack.pop();
-
-        if (removed != null) {
-            System.out.println("Popped package:");
-            removed.displayPackage();
-        } else {
-            System.out.println("Stack was empty.");
-        }
-
-        System.out.println();
-        System.out.println("Stack after pop():");
-        stack.displayStack();
-    }
-
-    /**
-     * Demonstrates AVL Tree methods step by step.
-     */
-    private static void demoAddressDirectory() {
-        printSectionHeader("ADDRESS DIRECTORY - AVL TREE");
-
-        AVLTree directory = new AVLTree();
-
-        System.out.println("[Step 1] Method: insert(String neighborhood, String customerID)");
-        System.out.println("Purpose : Store neighborhood records in a balanced search tree.");
-        System.out.println("Complexity: O(log n) because rotations keep the tree balanced.");
-        System.out.println();
-
-        String[][] sampleRecords = {
-                { "Talas", "CUST001" },
-                { "Belsin", "CUST002" },
-                { "Melikgazi", "CUST003" },
-                { "Erkilet", "CUST004" },
-                { "Incesu", "CUST005" },
-                { "Hacilar", "CUST006" }
-        };
-
-        for (String[] record : sampleRecords) {
-            System.out.println("Calling insert(" + record[0] + ", " + record[1] + ")");
-            directory.insert(record[0], record[1]);
-        }
-
-        System.out.println();
-        System.out.println("[Step 2] Method: search(String neighborhood)");
-        System.out.println("Purpose : Find a neighborhood record efficiently.");
-        System.out.println("Complexity: O(log n) because the tree height stays balanced.");
-        System.out.println();
-
-        System.out.println("Searching for Talas:");
-        directory.search("Talas");
-        System.out.println();
-
-        System.out.println("Searching for UnknownDistrict:");
-        directory.search("UnknownDistrict");
-        System.out.println();
-
-        System.out.println("[Step 3] Method: displayInOrder()");
-        System.out.println("Purpose : Print all records in sorted neighborhood order.");
-        System.out.println("Complexity: O(n) because every node is visited once.");
-        System.out.println();
-        directory.displayInOrder();
-
-        demoAvlBalancingAndRotationTest();
-    }
-
-    /**
-     * Demonstrates AVL balancing and single rotations using small test trees.
-     */
-    private static void demoAvlBalancingAndRotationTest() {
-        System.out.println();
-        System.out.println("========================================");
-        System.out.println("  AVL BALANCING AND ROTATION TEST");
-        System.out.println("========================================");
-        System.out.println();
-        System.out.println("Purpose : Prove that balance(), rotateLeft(), and rotateRight() work.");
-        System.out.println("Method  : balance() calls rotations automatically after insert().");
-        System.out.println();
-
-        System.out.println("--- rotateLeft() test (insert A, then B, then C) ---");
-        System.out.println("Expected: RR case triggers rotateLeft() on the unbalanced root.");
-        System.out.println();
-
-        AVLTree leftRotationTest = new AVLTree();
-        System.out.println("Calling insert(A, CUST_A)");
-        leftRotationTest.insert("A", "CUST_A");
-        System.out.println("Calling insert(B, CUST_B)");
-        leftRotationTest.insert("B", "CUST_B");
-        System.out.println("Calling insert(C, CUST_C)");
-        leftRotationTest.insert("C", "CUST_C");
-        System.out.println();
-        System.out.println("Tree after balancing (in-order traversal):");
-        leftRotationTest.displayInOrder();
-
-        System.out.println();
-        System.out.println("--- rotateRight() test (insert C, then B, then A) ---");
-        System.out.println("Expected: LL case triggers rotateRight() on the unbalanced root.");
-        System.out.println();
-
-        AVLTree rightRotationTest = new AVLTree();
-        System.out.println("Calling insert(C, CUST_C)");
-        rightRotationTest.insert("C", "CUST_C");
-        System.out.println("Calling insert(B, CUST_B)");
-        rightRotationTest.insert("B", "CUST_B");
-        System.out.println("Calling insert(A, CUST_A)");
-        rightRotationTest.insert("A", "CUST_A");
-        System.out.println();
-        System.out.println("Tree after balancing (in-order traversal):");
-        rightRotationTest.displayInOrder();
-    }
-
-    /**
-     * Demonstrates Graph methods step by step.
-     */
-    private static void demoCityRouting() {
-        printSectionHeader("CITY ROUTING - WEIGHTED GRAPH");
-
-        if (!graphLoaded) {
-            System.out.println("Graph data is not available. Please check mapData.txt.");
-            return;
-        }
-
-        Graph demoGraph = new Graph(100);
-        String[] endpoints = loadGraphFromFile("mapData.txt", demoGraph);
-
-        System.out.println("[Step 1] Method: addEdge(String source, String destination, int weight)");
-        System.out.println("Purpose : Build the city road network.");
-        System.out.println("Complexity: O(V) because vertex names may be searched before adding.");
-        System.out.println();
-        System.out.println("Roads loaded from mapData.txt using addEdge():");
-        demoGraph.displayGraph();
-
-        if (endpoints == null) {
-            System.out.println("No valid graph endpoints found.");
-            return;
-        }
-
-        System.out.println();
-        System.out.println("[Step 2] Method: calculateShortestPath(String start, String end)");
-        System.out.println("Purpose : Find the fastest delivery route using Dijkstra's Algorithm.");
-        System.out.println("Complexity: O(V^2) with the current adjacency matrix implementation.");
-        System.out.println();
-        demoGraph.calculateShortestPath(endpoints[0], endpoints[1]);
-
-        System.out.println();
-        System.out.println("[Step 3] Method: calculateMST()");
-        System.out.println("Purpose : Find the most efficient city network using Prim's Algorithm.");
-        System.out.println("Complexity: O(V^2) with the current adjacency matrix implementation.");
-        System.out.println();
-        demoGraph.calculateMST();
-    }
-
-    /**
-     * Runs the complete system demo using all loaded data structures.
-     */
-    private static void demoFullSystem() {
-        printSectionHeader("FULL SYSTEM DEMO");
-
-        if (graphLoaded) {
-            System.out.println("CITY ROAD NETWORK");
-            System.out.println("----------------------------------------");
-            roadNetwork.displayGraph();
-            System.out.println();
-
-            System.out.println("SHORTEST PATH");
-            System.out.println("----------------------------------------");
-            roadNetwork.calculateShortestPath(pathEndpoints[0], pathEndpoints[1]);
-            System.out.println();
-
-            System.out.println("MINIMUM SPANNING TREE");
-            System.out.println("----------------------------------------");
-            roadNetwork.calculateMST();
-            System.out.println();
-        }
-
-        if (packagesLoaded) {
-            System.out.println("MASTER REGISTRY");
-            System.out.println("----------------------------------------");
-            masterRegistry.displayLog();
-            System.out.println();
-
-            System.out.println("INTAKE BUFFER");
-            System.out.println("----------------------------------------");
-            intakeBuffer.displayBuffer();
-            System.out.println();
-
-            System.out.println("DELIVERY QUEUE");
-            System.out.println("----------------------------------------");
-            deliveryQueue.displayQueue();
-            System.out.println();
-
-            System.out.println("TRUCK LOADING STACK");
-            System.out.println("----------------------------------------");
-            truckStack.displayStack();
-            System.out.println();
-        }
-
-        System.out.println("ADDRESS DIRECTORY");
+        System.out.println("Packages waiting for processing:");
         System.out.println("----------------------------------------");
+        intakeBuffer.displayBuffer();
+    }
+
+    /**
+     * Registers a delivery in the master registry log.
+     * Method used: addRecord() on Singly Linked List.
+     */
+    private static void registerDeliveryInMasterLog() {
+        printOperationHeader("REGISTER DELIVERY IN MASTER LOG", "Singly Linked List - addRecord()");
+
+        if (intakeBuffer.isEmpty()) {
+            System.out.println("No packages in the intake buffer to register.");
+            System.out.println("Use option 1 to receive a delivery first.");
+            return;
+        }
+
+        Package pkg = intakeBuffer.removeFromHead();
+
+        System.out.println("Registering package removed from intake buffer head:");
+        pkg.displayPackage();
+        System.out.println();
+        System.out.println("Calling addRecord(Package pkg)...");
+        masterRegistry.addRecord(pkg);
+
+        System.out.println();
+        System.out.println("[SUCCESS] Package registered in the master log.");
+    }
+
+    /**
+     * Displays the full daily master registry log.
+     * Method used: displayLog() on Singly Linked List.
+     */
+    private static void displayMasterLog() {
+        printOperationHeader("DAILY MASTER LOG", "Singly Linked List - displayLog()");
+        masterRegistry.displayLog();
+    }
+
+    /**
+     * Moves a package from the intake buffer to the delivery queue.
+     * Methods used: removeFromHead() and enqueue().
+     */
+    private static void processDeliveriesToQueue() {
+        printOperationHeader(
+                "PROCESS DELIVERIES TO QUEUE",
+                "Doubly Linked List - removeFromHead() + Queue - enqueue()");
+
+        if (intakeBuffer.isEmpty()) {
+            System.out.println("No packages in the intake buffer to process.");
+            return;
+        }
+
+        Package pkg = intakeBuffer.removeFromHead();
+
+        System.out.println("Removed from intake buffer:");
+        pkg.displayPackage();
+        System.out.println();
+        System.out.println("Calling enqueue(Package pkg)...");
+        deliveryQueue.enqueue(pkg);
+
+        System.out.println();
+        System.out.println("[SUCCESS] Package moved to the standard delivery queue.");
+    }
+
+    /**
+     * Displays all packages waiting in the delivery queue.
+     * Method used: displayQueue() on Queue.
+     */
+    private static void displayDeliveryQueue() {
+        printOperationHeader("DELIVERY QUEUE", "Queue - displayQueue()");
+        deliveryQueue.displayQueue();
+    }
+
+    /**
+     * Loads one package from the delivery queue onto the truck stack.
+     * Methods used: dequeue() and push().
+     */
+    private static void loadTruckFromQueue() {
+        printOperationHeader("LOAD TRUCK FROM QUEUE", "Queue - dequeue() + Stack - push()");
+
+        if (deliveryQueue.isEmpty()) {
+            System.out.println("The delivery queue is empty. Process deliveries first (option 5).");
+            return;
+        }
+
+        Package pkg = deliveryQueue.dequeue();
+
+        System.out.println("Dequeued from delivery queue:");
+        pkg.displayPackage();
+        System.out.println();
+        System.out.println("Calling push(Package pkg)...");
+        truckStack.push(pkg);
+
+        System.out.println();
+        System.out.println("[SUCCESS] Package loaded onto the truck.");
+    }
+
+    /**
+     * Displays all packages currently loaded on the truck.
+     * Method used: displayStack() on Stack.
+     */
+    private static void displayTruckStack() {
+        printOperationHeader("TRUCK LOADING STACK", "Stack - displayStack()");
+        truckStack.displayStack();
+    }
+
+    /**
+     * Unloads one package from the truck for delivery.
+     * Method used: pop() on Stack.
+     */
+    private static void deliverPackageFromTruck() {
+        printOperationHeader("DELIVER PACKAGE FROM TRUCK", "Stack - pop()");
+
+        if (truckStack.isEmpty()) {
+            System.out.println("The truck is empty. Load packages first (option 7).");
+            return;
+        }
+
+        Package pkg = truckStack.pop();
+
+        System.out.println("Calling pop()...");
+        System.out.println();
+        System.out.println("[SUCCESS] Package delivered / unloaded from truck:");
+        pkg.displayPackage();
+    }
+
+    // -------------------------------------------------------------------------
+    // AVL Tree operations
+    // -------------------------------------------------------------------------
+
+    /**
+     * Creates a new address record in the AVL address directory.
+     * Method used: insert() on AVL Tree.
+     */
+    private static void createNewAddress() {
+        printOperationHeader("CREATE NEW ADDRESS", "AVL Tree - insert()");
+
+        String neighborhood = readNonEmptyLine("Enter neighborhood name: ");
+        String customerID = readNonEmptyLine("Enter customer ID: ");
+
+        System.out.println();
+        System.out.println("Calling insert(\"" + neighborhood + "\", \"" + customerID + "\")...");
+        addressDirectory.insert(neighborhood, customerID);
+
+        System.out.println();
+        System.out.println("[SUCCESS] Address record added to the AVL Tree.");
+    }
+
+    /**
+     * Searches for a neighborhood in the AVL address directory.
+     * Method used: search() on AVL Tree.
+     */
+    private static void searchAddress() {
+        printOperationHeader("SEARCH ADDRESS", "AVL Tree - search()");
+
+        String neighborhood = readNonEmptyLine("Enter neighborhood to search: ");
+
+        System.out.println();
+        System.out.println("Calling search(\"" + neighborhood + "\")...");
+        System.out.println("----------------------------------------");
+        addressDirectory.search(neighborhood);
+    }
+
+    /**
+     * Displays all address records in sorted order.
+     * Method used: displayInOrder() on AVL Tree.
+     */
+    private static void displayAllAddresses() {
+        printOperationHeader("ALL ADDRESSES", "AVL Tree - displayInOrder()");
         addressDirectory.displayInOrder();
     }
 
     /**
-     * Inserts neighborhood records into the AVL Tree using package destinations.
+     * Runs the AVL balancing and rotation proof using small test trees.
      */
-    private static void populateAddressDirectory() {
-        Package[] packages = readAllPackagesFromFile("packageData.txt");
+    private static void runAvlRotationTest() {
+        printOperationHeader("AVL BALANCING AND ROTATION TEST", "AVL Tree - balance(), rotateLeft(), rotateRight()");
+
+        System.out.println("--- rotateLeft() test (insert A, B, C) ---");
+        AVLTree leftRotationTest = new AVLTree();
+        leftRotationTest.insert("A", "CUST_A");
+        leftRotationTest.insert("B", "CUST_B");
+        leftRotationTest.insert("C", "CUST_C");
+        System.out.println("Tree after balancing:");
+        leftRotationTest.displayInOrder();
+
+        System.out.println();
+        System.out.println("--- rotateRight() test (insert C, B, A) ---");
+        AVLTree rightRotationTest = new AVLTree();
+        rightRotationTest.insert("C", "CUST_C");
+        rightRotationTest.insert("B", "CUST_B");
+        rightRotationTest.insert("A", "CUST_A");
+        System.out.println("Tree after balancing:");
+        rightRotationTest.displayInOrder();
+    }
+
+    // -------------------------------------------------------------------------
+    // Graph operations
+    // -------------------------------------------------------------------------
+
+    /**
+     * Adds a new road connection to the city graph.
+     * Method used: addEdge() on Graph.
+     */
+    private static void addRoadConnection() {
+        printOperationHeader("ADD ROAD CONNECTION", "Graph - addEdge()");
+
+        String source = readNonEmptyLine("Enter source neighborhood: ");
+        String destination = readNonEmptyLine("Enter destination neighborhood: ");
+        int weight = readPositiveInt("Enter distance in KM: ");
+
+        System.out.println();
+        System.out.println("Calling addEdge(\"" + source + "\", \"" + destination + "\", " + weight + ")...");
+        roadNetwork.addEdge(source, destination, weight);
+
+        System.out.println();
+        System.out.println("[SUCCESS] Road connection added to the city map.");
+    }
+
+    /**
+     * Displays all road connections in the city graph.
+     * Method used: displayGraph() on Graph.
+     */
+    private static void displayCityMap() {
+        printOperationHeader("CITY ROAD MAP", "Graph - displayGraph()");
+        roadNetwork.displayGraph();
+    }
+
+    /**
+     * Calculates the shortest path between two neighborhoods using Dijkstra.
+     * Method used: calculateShortestPath() on Graph.
+     */
+    private static void calculateShortestPathInteractive() {
+        printOperationHeader("SHORTEST PATH", "Graph - calculateShortestPath() / Dijkstra");
+
+        String start = readNonEmptyLine("Enter start neighborhood: ");
+        String end = readNonEmptyLine("Enter destination neighborhood: ");
+
+        System.out.println();
+        System.out.println("Calling calculateShortestPath(\"" + start + "\", \"" + end + "\")...");
+        System.out.println("----------------------------------------");
+        roadNetwork.calculateShortestPath(start, end);
+    }
+
+    /**
+     * Calculates and displays the minimum spanning tree using Prim's algorithm.
+     * Method used: calculateMST() on Graph.
+     */
+    private static void displayMinimumSpanningTree() {
+        printOperationHeader("MINIMUM SPANNING TREE", "Graph - calculateMST() / Prim");
+        roadNetwork.calculateMST();
+    }
+
+    // -------------------------------------------------------------------------
+    // Customer / package helpers
+    // -------------------------------------------------------------------------
+
+    /**
+     * Resolves or creates a customer ID for a destination neighborhood.
+     *
+     * @param destination destination neighborhood entered by the user
+     * @return customer ID linked to the neighborhood
+     */
+    private static String resolveCustomerID(String destination) {
+        System.out.print("Does customer already exist? (yes/no): ");
+        String answer = scanner.nextLine().trim().toLowerCase();
+
+        if (answer.equals("yes") || answer.equals("y")) {
+            String customerID = readNonEmptyLine("Enter existing customer ID: ");
+            addressDirectory.insert(destination, customerID);
+            return customerID;
+        }
+
+        String generatedID = generateCustomerID();
+        System.out.println("Generated Customer ID: " + generatedID);
+        System.out.print("Do you accept this ID? (yes/no): ");
+        String accept = scanner.nextLine().trim().toLowerCase();
+
+        String customerID;
+
+        if (accept.equals("no") || accept.equals("n")) {
+            customerID = readNonEmptyLine("Enter your preferred customer ID: ");
+        } else {
+            customerID = generatedID;
+        }
+
+        System.out.println("Calling insert(\"" + destination + "\", \"" + customerID + "\") on AVL Tree...");
+        addressDirectory.insert(destination, customerID);
+        return customerID;
+    }
+
+    /**
+     * Generates the next package ID in the project format.
+     *
+     * @return new package ID
+     */
+    private static String generatePackageID() {
+        String packageID = "PKG" + String.format("%03d", nextPackageNumber);
+        nextPackageNumber++;
+        return packageID;
+    }
+
+    /**
+     * Generates the next customer ID in the project format.
+     *
+     * @return new customer ID
+     */
+    private static String generateCustomerID() {
+        String customerID = "CUST" + String.format("%03d", nextCustomerNumber);
+        nextCustomerNumber++;
+        return customerID;
+    }
+
+    // -------------------------------------------------------------------------
+    // Input helpers
+    // -------------------------------------------------------------------------
+
+    /**
+     * Reads a non-empty line of text from the user.
+     *
+     * @param prompt message shown before input
+     * @return trimmed non-empty input
+     */
+    private static String readNonEmptyLine(String prompt) {
+        while (true) {
+            System.out.print(prompt);
+            String input = scanner.nextLine().trim();
+
+            if (!input.equals("")) {
+                return input;
+            }
+
+            System.out.println("Input cannot be empty. Please try again.");
+        }
+    }
+
+    /**
+     * Reads a positive integer from the user.
+     *
+     * @param prompt message shown before input
+     * @return positive integer value
+     */
+    private static int readPositiveInt(String prompt) {
+        while (true) {
+            System.out.print(prompt);
+
+            try {
+                int value = Integer.parseInt(scanner.nextLine().trim());
+
+                if (value > 0) {
+                    return value;
+                }
+
+                System.out.println("Please enter a number greater than 0.");
+            } catch (NumberFormatException exception) {
+                System.out.println("Please enter a valid integer.");
+            }
+        }
+    }
+
+    /**
+     * Reads an integer within a given range, or 0 for exit.
+     *
+     * @param prompt    message shown before input
+     * @param minChoice minimum valid choice (excluding exit)
+     * @param maxChoice maximum valid choice
+     * @return selected menu number, or 0 for exit
+     */
+    private static int readIntInRange(String prompt, int minChoice, int maxChoice) {
+        while (true) {
+            System.out.print(prompt);
+
+            try {
+                int choice = Integer.parseInt(scanner.nextLine().trim());
+
+                if (choice == 0) {
+                    System.out.println("Thank you for using FastRoute Kayseri. Goodbye!");
+                    System.exit(0);
+                }
+
+                if (choice >= minChoice && choice <= maxChoice) {
+                    return choice;
+                }
+
+                System.out.println("Please enter a number between 0 and " + maxChoice + ".");
+            } catch (NumberFormatException exception) {
+                System.out.println("Please enter a valid number.");
+            }
+        }
+    }
+
+    /**
+     * Waits for the user to press Enter before showing the menu again.
+     */
+    private static void pauseForEnter() {
+        System.out.println();
+        System.out.println("Press Enter to continue...");
+        scanner.nextLine();
+        System.out.println();
+    }
+
+    /**
+     * Prints a formatted operation header with the related data structure.
+     *
+     * @param title          operation title
+     * @param dataStructure  data structure and method information
+     */
+    private static void printOperationHeader(String title, String dataStructure) {
+        System.out.println();
+        System.out.println("========================================");
+        System.out.println("  " + title);
+        System.out.println("  Data Structure: " + dataStructure);
+        System.out.println("========================================");
+        System.out.println();
+    }
+
+    // -------------------------------------------------------------------------
+    // File loading
+    // -------------------------------------------------------------------------
+
+    /**
+     * Loads initial packages from file into the intake buffer and master log.
+     * Also registers destinations in the AVL address directory.
+     *
+     * @param fileName name of the package data file
+     * @return true if at least one package was loaded
+     */
+    private static boolean loadInitialPackagesFromFile(String fileName) {
+        Package[] packages = readAllPackagesFromFile(fileName);
+
+        if (packages.length == 0) {
+            System.out.println("No package data found in " + fileName + ".");
+            return false;
+        }
 
         for (int i = 0; i < packages.length; i++) {
+            Package pkg = packages[i];
+            intakeBuffer.insertAtTail(new Package(pkg.packageID, pkg.destination));
+            masterRegistry.addRecord(new Package(pkg.packageID, pkg.destination));
+
             String customerID = "CUST" + String.format("%03d", i + 1);
-            addressDirectory.insert(packages[i].destination, customerID);
+            addressDirectory.insert(pkg.destination, customerID);
+
+            updatePackageCounterFromID(pkg.packageID);
+        }
+
+        nextCustomerNumber = packages.length + 1;
+        return true;
+    }
+
+    /**
+     * Updates the package counter based on an existing package ID.
+     *
+     * @param packageID package ID read from file
+     */
+    private static void updatePackageCounterFromID(String packageID) {
+        try {
+            String numberPart = packageID.replaceAll("[^0-9]", "");
+
+            if (!numberPart.equals("")) {
+                int parsed = Integer.parseInt(numberPart);
+
+                if (parsed >= nextPackageNumber) {
+                    nextPackageNumber = parsed + 1;
+                }
+            }
+        } catch (NumberFormatException exception) {
+            nextPackageNumber++;
         }
     }
 
@@ -589,22 +732,9 @@ public class Main {
     }
 
     /**
-     * Prints a formatted section header for demo output.
-     *
-     * @param title section title
-     */
-    private static void printSectionHeader(String title) {
-        System.out.println();
-        System.out.println("========================================");
-        System.out.println("  " + title);
-        System.out.println("========================================");
-        System.out.println();
-    }
-
-    /**
      * Reads up to a maximum number of packages from a text file.
      *
-     * @param fileName   name of the package data file
+     * @param fileName    name of the package data file
      * @param maxPackages maximum number of packages to read
      * @return array of Package objects read from the file
      */
@@ -656,12 +786,9 @@ public class Main {
      *
      * @param fileName name of the map data file
      * @param graph    graph object that will receive the road connections
-     * @return two neighborhood names for shortest path testing, or null if no
-     *         valid road data could be loaded
+     * @return true if at least one valid road was loaded
      */
-    private static String[] loadGraphFromFile(String fileName, Graph graph) {
-        String firstSource = null;
-        String lastDestination = null;
+    private static boolean loadGraphFromFile(String fileName, Graph graph) {
         int loadedRoadCount = 0;
 
         try {
@@ -681,12 +808,6 @@ public class Main {
                         try {
                             int weight = Integer.parseInt(parts[2]);
                             graph.addEdge(source, destination, weight);
-
-                            if (firstSource == null) {
-                                firstSource = source;
-                            }
-
-                            lastDestination = destination;
                             loadedRoadCount++;
                         } catch (NumberFormatException exception) {
                             System.out.println("Skipped invalid road weight: " + trimmedLine);
@@ -703,82 +824,15 @@ public class Main {
         } catch (FileNotFoundException exception) {
             System.out.println("ERROR: " + fileName + " not found.");
             System.out.println("Please place " + fileName + " in the project folder.");
-            return null;
+            return false;
         } catch (IOException exception) {
             System.out.println("ERROR: Unable to read file.");
             System.out.println("Details: " + exception.getMessage());
-            return null;
+            return false;
         }
 
         if (loadedRoadCount == 0) {
             System.out.println("No valid graph data was found in " + fileName + ".");
-            return null;
-        }
-
-        return new String[] { firstSource, lastDestination };
-    }
-
-    /**
-     * Reads package records from a text file and inserts every package into
-     * all package-based data structures used in this project.
-     *
-     * @param fileName       name of the package data file
-     * @param masterRegistry singly linked list for the package registry
-     * @param intakeBuffer   doubly linked list for the intake buffer
-     * @param deliveryQueue  queue for standard delivery order
-     * @param truckStack     stack for truck loading order
-     * @return true if at least one package was loaded, otherwise false
-     */
-    private static boolean loadPackagesFromFile(
-            String fileName,
-            SinglyLinkedList masterRegistry,
-            DoublyLinkedList intakeBuffer,
-            PackageQueue deliveryQueue,
-            PackageStack truckStack) {
-
-        int loadedPackageCount = 0;
-
-        try {
-            BufferedReader reader = new BufferedReader(new FileReader(fileName));
-            String line = reader.readLine();
-
-            while (line != null) {
-                String trimmedLine = line.trim();
-
-                if (!trimmedLine.equals("") && !trimmedLine.startsWith("#")) {
-                    String[] parts = trimmedLine.split("\\s+");
-
-                    if (parts.length == 2) {
-                        String packageId = parts[0];
-                        String destination = parts[1];
-
-                        masterRegistry.addRecord(new Package(packageId, destination));
-                        intakeBuffer.insertAtTail(new Package(packageId, destination));
-                        deliveryQueue.enqueue(new Package(packageId, destination));
-                        truckStack.push(new Package(packageId, destination));
-
-                        loadedPackageCount++;
-                    } else {
-                        System.out.println("Skipped invalid package line: " + trimmedLine);
-                    }
-                }
-
-                line = reader.readLine();
-            }
-
-            reader.close();
-        } catch (FileNotFoundException exception) {
-            System.out.println("ERROR: " + fileName + " not found.");
-            System.out.println("Please place " + fileName + " in the project folder.");
-            return false;
-        } catch (IOException exception) {
-            System.out.println("ERROR: Unable to read file.");
-            System.out.println("Details: " + exception.getMessage());
-            return false;
-        }
-
-        if (loadedPackageCount == 0) {
-            System.out.println("No valid package data was found in " + fileName + ".");
             return false;
         }
 

@@ -390,6 +390,53 @@ public class Main {
         System.out.println("Complexity: O(n) because every node is visited once.");
         System.out.println();
         directory.displayInOrder();
+
+        demoAvlBalancingAndRotationTest();
+    }
+
+    /**
+     * Demonstrates AVL balancing and single rotations using small test trees.
+     */
+    private static void demoAvlBalancingAndRotationTest() {
+        System.out.println();
+        System.out.println("========================================");
+        System.out.println("  AVL BALANCING AND ROTATION TEST");
+        System.out.println("========================================");
+        System.out.println();
+        System.out.println("Purpose : Prove that balance(), rotateLeft(), and rotateRight() work.");
+        System.out.println("Method  : balance() calls rotations automatically after insert().");
+        System.out.println();
+
+        System.out.println("--- rotateLeft() test (insert A, then B, then C) ---");
+        System.out.println("Expected: RR case triggers rotateLeft() on the unbalanced root.");
+        System.out.println();
+
+        AVLTree leftRotationTest = new AVLTree();
+        System.out.println("Calling insert(A, CUST_A)");
+        leftRotationTest.insert("A", "CUST_A");
+        System.out.println("Calling insert(B, CUST_B)");
+        leftRotationTest.insert("B", "CUST_B");
+        System.out.println("Calling insert(C, CUST_C)");
+        leftRotationTest.insert("C", "CUST_C");
+        System.out.println();
+        System.out.println("Tree after balancing (in-order traversal):");
+        leftRotationTest.displayInOrder();
+
+        System.out.println();
+        System.out.println("--- rotateRight() test (insert C, then B, then A) ---");
+        System.out.println("Expected: LL case triggers rotateRight() on the unbalanced root.");
+        System.out.println();
+
+        AVLTree rightRotationTest = new AVLTree();
+        System.out.println("Calling insert(C, CUST_C)");
+        rightRotationTest.insert("C", "CUST_C");
+        System.out.println("Calling insert(B, CUST_B)");
+        rightRotationTest.insert("B", "CUST_B");
+        System.out.println("Calling insert(A, CUST_A)");
+        rightRotationTest.insert("A", "CUST_A");
+        System.out.println();
+        System.out.println("Tree after balancing (in-order traversal):");
+        rightRotationTest.displayInOrder();
     }
 
     /**

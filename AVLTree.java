@@ -184,6 +184,8 @@ public class AVLTree {
      * @return new root after rotation
      */
     private AVLNode rotateRight(AVLNode y) {
+        System.out.println("Rotation applied: rotateRight(" + y.neighborhood + ")");
+
         AVLNode x = y.left;
         AVLNode middleSubtree = x.right;
 
@@ -208,6 +210,8 @@ public class AVLTree {
      * @return new root after rotation
      */
     private AVLNode rotateLeft(AVLNode x) {
+        System.out.println("Rotation applied: rotateLeft(" + x.neighborhood + ")");
+
         AVLNode y = x.right;
         AVLNode middleSubtree = y.left;
 
